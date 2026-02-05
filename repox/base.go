@@ -122,10 +122,9 @@ type INative[C any] interface {
 	Native() C
 }
 
-type Repo[T any, C any] interface {
+type Repo[T any] interface {
 	ICreator[T]
 	IFinder[T]
 	IUpdater[T]
 	IDeleter[T]
-	INative[C]
 }

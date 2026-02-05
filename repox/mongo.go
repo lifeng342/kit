@@ -15,7 +15,7 @@ type MongoRepo[T any] struct {
 }
 
 // 确保 MongoRepo 实现了 Repo 接口
-var _ Repo[any, *mongo.Collection] = (*MongoRepo[any])(nil)
+var _ Repo[any] = (*MongoRepo[any])(nil)
 
 // NewMongoRepo 创建 MongoDB 仓库
 func NewMongoRepo[T any](coll *mongo.Collection) *MongoRepo[T] {
@@ -231,5 +231,19 @@ func getId(entity any) (any, bool) {
 		return e.GetId(), true
 	}
 
+	return nil, false
+}
+
+func AsMongoRepo[T any](repo Repo[T]) (*MongoRepo[T], bool) {
+	if mr, ok := repo.(*MongoRepo[T]); ok {
+		return mr, true
+	}
+	return nil, false
+}
+
+func GetNativeCollection[T any](repo Repo[T]) (*mongo.Collection, bool) {
+	if mr, ok := AsMongoRepo(repo); ok {
+		return mr.Native(), true
+	}
 	return nil, false
 }

@@ -14,7 +14,7 @@ type GormRepo[T any] struct {
 }
 
 // 确保 GormRepo 实现了 Repo 接口
-var _ Repo[any, *gorm.DB] = (*GormRepo[any])(nil)
+var _ Repo[any] = (*GormRepo[any])(nil)
 
 // NewGormRepo 创建 GORM 仓库
 func NewGormRepo[T any](db *gorm.DB) *GormRepo[T] {
@@ -208,4 +208,18 @@ func (r *GormRepo[T]) incrToUpdate(incr map[string]int) map[string]any {
 		ret[k] = gorm.Expr(k+" + ?", v)
 	}
 	return ret
+}
+
+func AsGormRepo[T any](repo Repo[T]) (*GormRepo[T], bool) {
+	if gr, ok := repo.(*GormRepo[T]); ok {
+		return gr, true
+	}
+	return nil, false
+}
+
+func GetNativeDB[T any](repo Repo[T]) (*gorm.DB, bool) {
+	if gr, ok := AsGormRepo(repo); ok {
+		return gr.Native(), true
+	}
+	return nil, false
 }
