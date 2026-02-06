@@ -11,15 +11,42 @@ import (
 
 // MongoRepo MongoDB 通用仓库实现
 type MongoRepo[T any] struct {
-	coll *mongo.Collection
+	coll   *mongo.Collection
+	client *mongo.Client
 }
 
 // 确保 MongoRepo 实现了 Repo 接口
 var _ Repo[any] = (*MongoRepo[any])(nil)
 
 // NewMongoRepo 创建 MongoDB 仓库
-func NewMongoRepo[T any](coll *mongo.Collection) *MongoRepo[T] {
-	return &MongoRepo[T]{coll: coll}
+func NewMongoRepo[T any](coll *mongo.Collection, client *mongo.Client) *MongoRepo[T] {
+	return &MongoRepo[T]{coll: coll, client: client}
+}
+
+// Transaction 执行 MongoDB 事务
+// 使用示例：
+//
+//	err := repo.Transaction(ctx, func(ctx context.Context) error {
+//	    userRepo := repox.NewMongoRepo[User](userColl)
+//	    orderRepo := repox.NewMongoRepo[Order](orderColl)
+//	    // 执行事务操作，使用传入的 ctx（包含 session）
+//	    return nil
+//	})
+func (r *MongoRepo[T]) Transaction(ctx context.Context, fn TxFunc) error {
+	if r.client == nil {
+		return errors.New("client is required for transaction, use NewMongoRepoWithClient")
+	}
+
+	session, err := r.client.StartSession()
+	if err != nil {
+		return wrapError(err)
+	}
+	defer session.EndSession(ctx)
+
+	_, err = session.WithTransaction(ctx, func(sessCtx context.Context) (any, error) {
+		return nil, fn(sessCtx)
+	})
+	return wrapError(err)
 }
 
 // Native 返回底层 *mongo.Collection

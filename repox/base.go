@@ -7,6 +7,9 @@ import (
 
 var DataNotFound = errors.New("data not found")
 
+// TxFunc 事务函数类型
+type TxFunc func(ctx context.Context) error
+
 // FindOptions 存储查询配置
 type FindOptions struct {
 	ReturnFields []string
