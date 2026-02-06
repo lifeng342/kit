@@ -118,6 +118,10 @@ type IDeleter[T any] interface {
 	DeleteMany(ctx context.Context, filter any) (*DeleteResult, error)
 }
 
+type ITransaction[T any] interface {
+	Transaction(ctx context.Context, fn TxFunc) error
+}
+
 // INative 提供访问底层数据库连接的能力
 // 对于 GORM 返回 *gorm.DB
 // 对于 MongoDB 返回 *mongo.Collection
@@ -130,4 +134,5 @@ type Repo[T any] interface {
 	IFinder[T]
 	IUpdater[T]
 	IDeleter[T]
+	ITransaction[T]
 }
