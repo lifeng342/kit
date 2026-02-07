@@ -185,8 +185,8 @@ func (r *GormRepo[T]) UpdateMany(ctx context.Context, filter any, update map[str
 	return &UpdateResult{UpdateCount: chain.RowsAffected}, wrapError(nil)
 }
 
-// UpsertOne 插入或更新单条记录
-func (r *GormRepo[T]) UpsertOne(ctx context.Context, create T, opt UpsertOptions) error {
+// UpsertOne 插入或更新单条记录，返回是否是插入操作
+func (r *GormRepo[T]) UpsertOne(ctx context.Context, create T, opt UpsertOptions) (bool, error) {
 	columns := make([]clause.Column, 0, len(opt.ConflictKvs))
 	for k := range opt.ConflictKvs {
 		columns = append(columns, clause.Column{Name: k})
@@ -200,10 +200,19 @@ func (r *GormRepo[T]) UpsertOne(ctx context.Context, create T, opt UpsertOptions
 		doUpdates[k] = gorm.Expr(k+" + ?", v)
 	}
 
-	return wrapError(gorm.G[T](r.getDB(ctx), clause.OnConflict{
+	ret := r.getDB(ctx).WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   columns,
 		DoUpdates: clause.Assignments(doUpdates),
-	}).Create(ctx, &create))
+	}).Create(&create)
+	if ret.Error != nil {
+		return false, wrapError(ret.Error)
+	}
+	//err = gorm.G[T](r.getDB(ctx), clause.OnConflict{
+	//	Columns:   columns,
+	//	DoUpdates: clause.Assignments(doUpdates),
+	//}).Create(ctx, &create)
+
+	return ret.RowsAffected == 1, nil
 }
 
 // buildUpdateG 构建带更新选项的泛型实例
