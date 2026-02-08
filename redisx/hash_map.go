@@ -14,6 +14,13 @@ type HashMap[K comparable, V any] struct {
 	Cli redis.UniversalClient
 }
 
+func NewHashMap[K comparable, V any](cli redis.UniversalClient, key string) *HashMap[K, V] {
+	return &HashMap[K, V]{
+		Key: key,
+		Cli: cli,
+	}
+}
+
 // Set sets a field in the hash
 func (h *HashMap[K, V]) Set(ctx context.Context, field K, value V, expire time.Duration) error {
 	pipe := h.Cli.Pipeline()

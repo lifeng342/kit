@@ -47,6 +47,14 @@ func redisZToElements[T any](zs []redis.Z) []Element[T] {
 	return elements
 }
 
+func NewZQueue[T any](cli redis.UniversalClient, key string, desc bool) *ZQueue[T] {
+	return &ZQueue[T]{
+		Key:  key,
+		Cli:  cli,
+		Desc: desc,
+	}
+}
+
 // Add adds an element to the sorted set with the given score
 func (q *ZQueue[T]) Add(ctx context.Context, member T, score int64, expire time.Duration) error {
 	pipe := q.Cli.Pipeline()
