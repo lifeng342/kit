@@ -27,18 +27,16 @@ func (hl *HLogger) SetLevel(level hlog.Level) {
 }
 
 func WithKitex() {
-	logger.Logger.Logger().SetFormatter(&Formatter{})
 	klog.SetLogger(logger)
 }
 
 type HLogger struct {
-	Logger
+	*Logger
 }
 
 func WithHertz() {
-	logger.Logger.Logger().SetFormatter(&Formatter{})
-	hlogger := &HLogger{
-		logger,
+	hl := &HLogger{
+		Logger: logger,
 	}
-	hlog.SetLogger(hlogger)
+	hlog.SetLogger(hl)
 }

@@ -7,24 +7,80 @@ import (
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	kitexlogrus "github.com/kitex-contrib/obs-opentelemetry/logging/logrus"
+	kitexzerolog "github.com/kitex-contrib/obs-opentelemetry/logging/zerolog"
 	"github.com/natefinch/lumberjack"
+	"github.com/rs/zerolog"
 )
 
 var (
-	logger        Logger
+	logger        *Logger
 	defaultLogger klog.FullLogger
 	logLevel      Level
+	customOut     *customWriter
 )
+
+// Logger wraps different logger implementations
+type Logger struct {
+	klog.FullLogger
+	loggerType LoggerType
+}
 
 // Set custom format
 func init() {
 	logger = newLogger()
-	logger.Logger.Logger().SetFormatter(&Formatter{})
 	logger.SetLevel(klog.LevelDebug)
 	logLevel = LevelDebug
-
-	logger.Logger.Logger().AddHook(&traceIdHook{})
 	defaultLogger = logger
+}
+
+func newLogger() *Logger {
+	switch currentLoggerType {
+	case LoggerTypeLogrus:
+		return newLogrusLogger()
+	case LoggerTypeZerolog:
+		return newZerologLogger()
+	default:
+		return newZerologLogger()
+	}
+}
+
+func newLogrusLogger() *Logger {
+	l := kitexlogrus.NewLogger()
+	lg := &Logger{
+		FullLogger: l,
+		loggerType: LoggerTypeLogrus,
+	}
+
+	// Configure logrus with custom formatter and hooks
+	logrusLogger := l.Logger()
+	logrusLogger.SetFormatter(&Formatter{})
+	logrusLogger.AddHook(&traceIdHook{})
+
+	return lg
+}
+
+func newZerologLogger() *Logger {
+	// Create custom writer for formatting
+	customOut = newCustomWriter(os.Stdout)
+
+	// Create zerolog logger with proper configuration
+	zlog := zerolog.New(customOut).
+		With().Timestamp().Logger().
+		Hook(customFieldsHook{})
+
+	// Use CallerWithSkipFrameCount to get correct caller location
+	// Skip 5 frames to get to the actual user code
+	zlog = zlog.With().CallerWithSkipFrameCount(5).Logger()
+
+	// Create kitex logger wrapper
+	l := kitexzerolog.NewLogger(kitexzerolog.WithLogger(&zlog))
+
+	lg := &Logger{
+		FullLogger: l,
+		loggerType: LoggerTypeZerolog,
+	}
+
+	return lg
 }
 
 func SetLogger(fullLogger klog.FullLogger) {
@@ -34,20 +90,23 @@ func SetLogger(fullLogger klog.FullLogger) {
 func SetProdEnv() {
 	logger.SetLevel(klog.LevelInfo)
 	logLevel = LevelInfo
-	logger.Logger.Logger().AddHook(metricHook{})
-}
 
-type Logger struct {
-	*kitexlogrus.Logger
-}
-
-func newLogger() Logger {
-	return Logger{
-		kitexlogrus.NewLogger(),
+	// Enable metrics collection based on logger type
+	switch logger.loggerType {
+	case LoggerTypeLogrus:
+		// Add metric hook for logrus
+		if l, ok := logger.FullLogger.(*kitexlogrus.Logger); ok {
+			l.Logger().AddHook(metricHook{})
+		}
+	case LoggerTypeZerolog:
+		// Enable metrics for zerolog
+		if customOut != nil {
+			customOut.enableMetrics()
+		}
 	}
 }
 
-func GetLogger() Logger {
+func GetLogger() *Logger {
 	return logger
 }
 

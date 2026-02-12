@@ -74,8 +74,3 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	output := fmt.Sprintf("%v %v %v %v %v %v %v : %v\n", logTime, level, pid, gid, traceId, caller, custom, msg)
 	return []byte(output), nil
 }
-
-// SetFormatter set customized format
-func SetFormatter(formatter logrus.Formatter) {
-	logger.Logger.Logger().SetFormatter(formatter)
-}
